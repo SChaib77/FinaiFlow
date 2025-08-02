@@ -1,0 +1,85 @@
+# Multi-stage production-optimized Dockerfile for FinaiFlow 2.0
+# Stage 1: Python dependencies builder
+FROM python:3.11-slim as python-deps
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create virtual environment
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -U pip setuptools wheel && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Stage 2: Node.js dependencies (if frontend build needed)
+FROM node:18-alpine as node-deps
+# Placeholder for frontend build if needed
+
+# Stage 3: Production image
+FROM python:3.11-slim as production
+
+# Install runtime dependencies only
+RUN apt-get update && apt-get install -y \
+    libpq5 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Security: Create non-root user
+RUN groupadd -g 1001 appgroup && \
+    useradd -r -u 1001 -g appgroup appuser && \
+    mkdir -p /home/appuser && \
+    chown -R appuser:appgroup /home/appuser
+
+# Copy Python virtual environment from builder
+COPY --from=python-deps /opt/venv /opt/venv
+
+# Set environment variables
+ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH=/app \
+    PORT=8000
+
+# Create app directory
+WORKDIR /app
+
+# Copy application code
+COPY --chown=appuser:appgroup . .
+
+# Create necessary directories with proper permissions
+RUN mkdir -p /app/logs /app/temp /app/uploads && \
+    chown -R appuser:appgroup /app
+
+# Security hardening
+RUN chmod -R 755 /app && \
+    find /app -type d -exec chmod 755 {} \; && \
+    find /app -type f -exec chmod 644 {} \;
+
+# Switch to non-root user
+USER appuser
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:${PORT}/health || exit 1
+
+# Expose port
+EXPOSE ${PORT}
+
+# Production server with optimal settings
+CMD ["gunicorn", "app.main:app", \
+     "--workers", "4", \
+     "--worker-class", "uvicorn.workers.UvicornWorker", \
+     "--bind", "0.0.0.0:8000", \
+     "--max-requests", "1000", \
+     "--max-requests-jitter", "50", \
+     "--timeout", "120", \
+     "--keep-alive", "5", \
+     "--access-logfile", "-", \
+     "--error-logfile", "-"]
