@@ -1,0 +1,90 @@
+{
+  "index_patterns": ["finaiflow-*"],
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 1,
+      "index.refresh_interval": "30s",
+      "index.lifecycle.name": "finaiflow-policy",
+      "index.lifecycle.rollover_alias": "finaiflow-logs"
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+        "timestamp": {
+          "type": "date"
+        },
+        "level": {
+          "type": "keyword"
+        },
+        "logger": {
+          "type": "keyword"
+        },
+        "message": {
+          "type": "text",
+          "analyzer": "standard"
+        },
+        "service": {
+          "type": "keyword"
+        },
+        "environment": {
+          "type": "keyword"
+        },
+        "trace_id": {
+          "type": "keyword"
+        },
+        "user_id": {
+          "type": "keyword"
+        },
+        "tenant_id": {
+          "type": "keyword"
+        },
+        "request_id": {
+          "type": "keyword"
+        },
+        "method": {
+          "type": "keyword"
+        },
+        "url": {
+          "type": "keyword"
+        },
+        "status_code": {
+          "type": "integer"
+        },
+        "response_time": {
+          "type": "float"
+        },
+        "client_ip": {
+          "type": "ip"
+        },
+        "user_agent": {
+          "type": "text"
+        },
+        "error_type": {
+          "type": "keyword"
+        },
+        "error_message": {
+          "type": "text"
+        },
+        "stack_trace": {
+          "type": "text"
+        },
+        "geoip": {
+          "properties": {
+            "country_name": {
+              "type": "keyword"
+            },
+            "city_name": {
+              "type": "keyword"
+            },
+            "location": {
+              "type": "geo_point"
+            }
+          }
+        }
+      }
+    }
+  }
+}
